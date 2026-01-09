@@ -1,0 +1,381 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Multi-Robot Delivery Coordination</title>
+  <link rel="stylesheet" href="{% static 'dashboard/app.css' %}">
+  <script>
+    window.INIT_STATE = {{ initial_state|safe }};
+    window.SCENARIO_LIST = {{ scenarios|safe }};
+    window.MECHANISM_LIST = {{ mechanisms|safe }};
+  </script>
+</head>
+<body>
+  <div class="app" id="app-root">
+    <aside class="sidebar">
+
+      <div class="section-header section-header-main">Configuration</div>
+      <div class="section-header">Scenario Preset</div>
+      <select id="scenario-select" class="control control-select select-scenario"></select>
+
+      <div class="section-header">Coordination Mechanism</div>
+      <div class="control-row">
+        <select id="mechanism-select" class="control control-select select-mechanism"></select>
+        <div id="mechanism-desc" class="inline-note">Select a mechanism</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <details id="custom-params" class="details">
+        <summary>Custom Parameters</summary>
+        <div class="details-body">
+          <div class="section-header">Simulation Size</div>
+          <div class="form-row">
+            <label>Number of Robots</label>
+            <input id="num-robots" type="range" min="1" max="20">
+            <span id="num-robots-value" class="input-value"></span>
+          </div>
+          <div class="form-row">
+            <label>Grid Size</label>
+            <input id="grid-size" type="range" min="8" max="30">
+            <span id="grid-size-value" class="input-value"></span>
+          </div>
+          <div class="form-row">
+            <label>Max Steps</label>
+            <input id="max-steps" type="range" min="50" max="500">
+            <span id="max-steps-value" class="input-value"></span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-header">Order Generation</div>
+          <div class="form-row">
+            <label>Order Mode</label>
+            <select id="order-mode" class="control">
+              <option value="fixed_orders">Fixed Orders</option>
+              <option value="probabilistic">Probabilistic</option>
+            </select>
+          </div>
+          <div class="form-row" id="order-count-row">
+            <label>Fixed Order Count</label>
+            <input id="order-count" type="range" min="5" max="100">
+            <span id="order-count-value" class="input-value"></span>
+          </div>
+          <div class="form-row" id="order-rate-row">
+            <label>Order Rate</label>
+            <input id="order-rate" type="range" min="0.1" max="1.0" step="0.05">
+            <span id="order-rate-value" class="input-value"></span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-header">Spatial Distribution</div>
+          <div class="form-row checkbox-row">
+            <label>Clustered Orders</label>
+            <input id="clustered-orders" type="checkbox">
+          </div>
+          <div id="cluster-settings">
+            <div class="form-row">
+              <label>Center X</label>
+              <input id="cluster-center-x" type="number" min="0">
+            </div>
+            <div class="form-row">
+              <label>Center Y</label>
+              <input id="cluster-center-y" type="number" min="0">
+            </div>
+            <div class="form-row">
+              <label>Radius</label>
+              <input id="cluster-radius" type="range" min="1" max="10">
+              <span id="cluster-radius-value" class="input-value"></span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-header">Reliability</div>
+          <div class="form-row checkbox-row">
+            <label>Enable Robot Failure</label>
+            <input id="failure-enabled" type="checkbox">
+          </div>
+          <div id="failure-settings" class="form-row">
+            <label>Failure Step</label>
+            <input id="failure-step" type="range" min="1" max="500">
+            <span id="failure-step-value" class="input-value"></span>
+          </div>
+        </div>
+      </details>
+
+      <div class="divider"></div>
+
+      <div class="section-header section-header-main section-header-accent">Controls</div>
+      <div class="section-header">Speed (steps/sec)</div>
+      <div class="form-row">
+        <input id="speed-slider" type="range" min="1" max="20">
+        <span id="speed-value" class="input-value"></span>
+      </div>
+
+      <div class="button-row">
+        <button id="btn-reset" class="button">Reset</button>
+        <button id="btn-step" class="button">Step</button>
+      </div>
+      <div class="button-row">
+        <button id="btn-play" class="button button-primary">Play</button>
+        <button id="btn-pause" class="button button-primary">Pause</button>
+      </div>
+
+      <div class="panel status-panel">
+        <div class="status-row"><span class="status-label">Status</span><span id="status-running">Paused</span></div>
+        <div class="status-row"><span class="status-label">Simulation</span><span id="status-simulation">Active</span></div>
+        <div class="status-row"><span class="status-label">Progress</span><span id="status-progress">0 steps @ 5x</span></div>
+        <div class="status-row"><span class="status-label">Orders</span><span id="status-orders">0 pending | 0 assigned | 0 completed</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="panel panel-hero main-hero">
+        <div class="main-hero-content">
+          <h1 class="panel-title">Multi-Robot Delivery Coordination</h1>
+          <p class="panel-subtitle">Interactive Mesa simulation with real-time visualization</p>
+        </div>
+        <div class="main-hero-actions">
+          <button id="btn-toggle-sidebar" class="button button-ghost">Close Controls</button>
+        </div>
+      </section>
+      <section class="panel action-panel">
+        <div class="action-header">
+          <div>
+            <div class="section-header section-header-main">Experiment Suite</div>
+            <p class="panel-subtitle">Run the full 7x3 comparison suite with PNG exports</p>
+          </div>
+          <button id="btn-run-suite" class="button button-primary">Run Full Suite (7x3)</button>
+        </div>
+        <div class="suite-progress">
+          <div class="progress-track">
+            <div id="suite-progress-bar" class="progress-bar"></div>
+          </div>
+          <div id="suite-status" class="progress-text">Idle</div>
+        </div>
+      </section>
+
+      <section id="suite-results" class="panel hidden">
+        <div class="section-header section-header-main">Full Experiment Suite Results</div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Mechanism</th>
+                <th>Throughput</th>
+                <th>Efficiency</th>
+                <th>Total Distance</th>
+                <th>Total Conflicts</th>
+                <th>Fairness Var</th>
+              </tr>
+            </thead>
+            <tbody id="suite-table-body"></tbody>
+          </table>
+        </div>
+        <div class="button-row">
+          <a id="suite-csv-link" class="button" href="/api/export/suite/summary">Summary CSV</a>
+          <a id="suite-zip-link" class="button" href="/api/export/suite/zip">ZIP (PNG + CSV)</a>
+          <button id="btn-clear-suite" class="button">Clear Results</button>
+        </div>
+      </section>
+
+      <section class="grid-metrics">
+        <div class="panel grid-panel">
+          <div class="section-header section-header-main">Warehouse Grid</div>
+          <canvas id="grid-canvas"></canvas>
+        </div>
+        <div class="panel">
+          <div class="section-header section-header-main">Live Metrics</div>
+          <div class="metrics-grid">
+            <div class="metric-card metric-card-primary" data-metric="orders_generated">
+              <div class="metric-label">Orders Generated</div>
+              <div class="metric-value" id="metric-orders-generated">0</div>
+              <div class="metric-unit">orders</div>
+              <div class="metric-status status-ok" id="metric-status-orders-generated">OK</div>
+            </div>
+            <div class="metric-card metric-card-success" data-metric="orders_completed">
+              <div class="metric-label">Orders Completed</div>
+              <div class="metric-value" id="metric-orders-completed">0</div>
+              <div class="metric-unit">orders</div>
+              <div class="metric-status status-ok" id="metric-status-orders-completed">OK</div>
+            </div>
+            <div class="metric-card metric-card-accent" data-metric="active_orders">
+              <div class="metric-label">Active Orders</div>
+              <div class="metric-value" id="metric-active-orders">0</div>
+              <div class="metric-unit">orders</div>
+              <div class="metric-status status-ok" id="metric-status-active-orders">OK</div>
+            </div>
+            <div class="metric-card metric-card-primary" data-metric="throughput">
+              <div class="metric-label">Throughput</div>
+              <div class="metric-value" id="metric-throughput">0</div>
+              <div class="metric-unit">orders/step</div>
+              <div class="metric-status status-ok" id="metric-status-throughput">OK</div>
+            </div>
+            <div class="metric-card metric-card-warning" data-metric="efficiency">
+              <div class="metric-label">Efficiency</div>
+              <div class="metric-value" id="metric-efficiency">0</div>
+              <div class="metric-unit">orders/m</div>
+              <div class="metric-status status-ok" id="metric-status-efficiency">OK</div>
+            </div>
+            <div class="metric-card" data-metric="total_distance">
+              <div class="metric-label">Total Distance</div>
+              <div class="metric-value" id="metric-total-distance">0</div>
+              <div class="metric-unit">meters</div>
+              <div class="metric-status status-ok" id="metric-status-total-distance">OK</div>
+            </div>
+            <div class="metric-card metric-card-success" data-metric="avg_battery">
+              <div class="metric-label">Avg Battery</div>
+              <div class="metric-value" id="metric-avg-battery">0</div>
+              <div class="metric-unit">percent</div>
+              <div class="metric-status status-ok" id="metric-status-avg-battery">OK</div>
+            </div>
+            <div class="metric-card" data-metric="attempted_conflicts">
+              <div class="metric-label">Conflicts</div>
+              <div class="metric-value" id="metric-conflicts">0</div>
+              <div class="metric-unit">events</div>
+              <div class="metric-status status-ok" id="metric-status-conflicts">OK</div>
+            </div>
+            <div class="metric-card" data-metric="hard_blocks">
+              <div class="metric-label">Hard Blocks</div>
+              <div class="metric-value" id="metric-hard-blocks">0</div>
+              <div class="metric-unit">blocks</div>
+              <div class="metric-status status-ok" id="metric-status-hard-blocks">OK</div>
+            </div>
+            <div class="metric-card" data-metric="idle_robots">
+              <div class="metric-label">Idle Robots</div>
+              <div class="metric-value" id="metric-idle-robots">0</div>
+              <div class="metric-unit">robots</div>
+              <div class="metric-status status-ok" id="metric-status-idle-robots">OK</div>
+            </div>
+            <div class="metric-card" data-metric="broken_robots">
+              <div class="metric-label">Broken Robots</div>
+              <div class="metric-value" id="metric-broken-robots">0</div>
+              <div class="metric-unit">robots</div>
+              <div class="metric-status status-ok" id="metric-status-broken-robots">OK</div>
+            </div>
+            <div class="metric-card" data-metric="fairness_variance">
+              <div class="metric-label">Fairness Var</div>
+              <div class="metric-value" id="metric-fairness-var">0</div>
+              <div class="metric-unit">variance</div>
+              <div class="metric-status status-ok" id="metric-status-fairness-var">OK</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tabs">
+        <div class="tab-list">
+          <button class="tab-button active" data-tab="charts">Charts</button>
+          <button class="tab-button" data-tab="robots">Robots</button>
+          <button class="tab-button" data-tab="orders">Orders</button>
+          <button class="tab-button" data-tab="export">Export</button>
+        </div>
+
+        <div id="tab-charts" class="tab-panel active">
+          <div class="chart-grid">
+            <div class="panel">
+              <div class="section-header">Orders Progress</div>
+              <canvas id="chart-orders"></canvas>
+            </div>
+            <div class="panel">
+              <div class="section-header">Total Distance Traveled</div>
+              <canvas id="chart-distance"></canvas>
+            </div>
+            <div class="panel">
+              <div class="section-header">Average Battery Level</div>
+              <canvas id="chart-battery"></canvas>
+            </div>
+            <div class="panel">
+              <div class="section-header">Conflicts Over Time</div>
+              <canvas id="chart-conflicts"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-robots" class="tab-panel">
+          <div class="panel">
+            <div class="section-header">Robot Status</div>
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>State</th>
+                    <th>Battery</th>
+                    <th>Tasks Done</th>
+                    <th>Distance</th>
+                    <th>Conflicts</th>
+                    <th>Hard Blocks</th>
+                    <th>Current Task</th>
+                    <th>Target</th>
+                  </tr>
+                </thead>
+                <tbody id="robots-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-orders" class="tab-panel">
+          <div class="orders-grid">
+            <div class="panel">
+              <div class="section-header">Pending</div>
+              <ul id="orders-pending" class="order-list"></ul>
+            </div>
+            <div class="panel">
+              <div class="section-header">Assigned</div>
+              <ul id="orders-assigned" class="order-list"></ul>
+            </div>
+            <div class="panel">
+              <div class="section-header">Completed</div>
+              <ul id="orders-completed" class="order-list"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-export" class="tab-panel">
+          <div class="panel">
+            <div class="section-header">Export Simulation Data</div>
+            <div class="button-row">
+              <a class="button" href="/api/export/metrics">Export Metrics JSON</a>
+              <a class="button" href="/api/export/model">Export Model CSV</a>
+              <a class="button" href="/api/export/agent">Export Agent CSV</a>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-header">Batch Comparison</div>
+            <p class="panel-subtitle">Run current scenario with all three coordination mechanisms.</p>
+            <div class="button-row">
+              <button id="btn-run-batch" class="button">Run all mechanisms</button>
+            </div>
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Mechanism</th>
+                    <th>Throughput</th>
+                    <th>Efficiency</th>
+                    <th>Total Distance</th>
+                    <th>Total Conflicts</th>
+                    <th>Fairness Var</th>
+                  </tr>
+                </thead>
+                <tbody id="batch-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{% static 'dashboard/app.js' %}"></script>
+</body>
+</html>
