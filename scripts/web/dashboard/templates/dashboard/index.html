@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>Multi-Robot Delivery Coordination</title>
-  <link rel="stylesheet" href="{% static 'dashboard/app.css' %}">
+  <link rel="stylesheet" href="{% static 'dashboard/app.css' %}?v=2">
   <script>
     window.INIT_STATE = {{ initial_state|safe }};
     window.SCENARIO_LIST = {{ scenarios|safe }};
@@ -19,11 +19,15 @@
 
       <div class="section-header section-header-main">Configuration</div>
       <div class="section-header">Scenario Preset</div>
-      <select id="scenario-select" class="control control-select select-scenario"></select>
+      <div class="select-wrap">
+        <select id="scenario-select" class="control ui-select"></select>
+      </div>
 
       <div class="section-header">Coordination Mechanism</div>
       <div class="control-row">
-        <select id="mechanism-select" class="control control-select select-mechanism"></select>
+        <div class="select-wrap">
+          <select id="mechanism-select" class="control ui-select"></select>
+        </div>
         <div id="mechanism-desc" class="inline-note">Select a mechanism</div>
       </div>
 
@@ -54,10 +58,12 @@
           <div class="section-header">Order Generation</div>
           <div class="form-row">
             <label>Order Mode</label>
-            <select id="order-mode" class="control">
-              <option value="fixed_orders">Fixed Orders</option>
-              <option value="probabilistic">Probabilistic</option>
-            </select>
+            <div class="select-shell select-shell-order">
+              <select id="order-mode" class="control control-select">
+                <option value="fixed_orders">Fixed Orders</option>
+                <option value="probabilistic">Probabilistic</option>
+              </select>
+            </div>
           </div>
           <div class="form-row" id="order-count-row">
             <label>Fixed Order Count</label>
@@ -135,15 +141,15 @@
     </aside>
 
     <main class="main">
-      <section class="panel panel-hero main-hero">
-        <div class="main-hero-content">
+      <header class="topbar">
+        <div class="topbar-title">
           <h1 class="panel-title">Multi-Robot Delivery Coordination</h1>
           <p class="panel-subtitle">Interactive Mesa simulation with real-time visualization</p>
         </div>
-        <div class="main-hero-actions">
+        <div class="topbar-actions">
           <button id="btn-toggle-sidebar" class="button button-ghost">Close Controls</button>
         </div>
-      </section>
+      </header>
       <section class="panel action-panel">
         <div class="action-header">
           <div>
@@ -189,6 +195,17 @@
         <div class="panel grid-panel">
           <div class="section-header section-header-main">Warehouse Grid</div>
           <canvas id="grid-canvas"></canvas>
+          <div class="legend">
+            <div class="legend-item"><span class="legend-swatch legend-shelf"></span>Shelf</div>
+            <div class="legend-item"><span class="legend-swatch legend-station"></span>Station</div>
+            <div class="legend-item"><span class="legend-swatch legend-idle"></span>Idle</div>
+            <div class="legend-item"><span class="legend-swatch legend-pickup"></span>To Pickup</div>
+            <div class="legend-item"><span class="legend-swatch legend-delivery"></span>To Delivery</div>
+            <div class="legend-item"><span class="legend-swatch legend-recharge"></span>Recharging</div>
+            <div class="legend-item"><span class="legend-swatch legend-broken"></span>Broken</div>
+            <div class="legend-item"><span class="legend-swatch legend-assigned-pickup"></span>Assigned Pickup</div>
+            <div class="legend-item"><span class="legend-swatch legend-assigned-delivery"></span>Assigned Delivery</div>
+          </div>
         </div>
         <div class="panel">
           <div class="section-header section-header-main">Live Metrics</div>
@@ -369,6 +386,14 @@
                 </thead>
                 <tbody id="batch-table-body"></tbody>
               </table>
+            </div>
+            <div id="batch-downloads" class="hidden">
+              <div class="section-header">Download batch results</div>
+              <div class="button-row">
+                <a class="button" href="/api/export/batch/summary">Download Summary CSV</a>
+                <a class="button" href="/api/export/batch/model">Download Model CSV</a>
+                <a class="button" href="/api/export/batch/agent">Download Agent CSV</a>
+              </div>
             </div>
           </div>
         </div>

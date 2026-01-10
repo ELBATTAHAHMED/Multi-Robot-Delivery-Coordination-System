@@ -25,6 +25,7 @@
     ordersAssigned: document.getElementById("orders-assigned"),
     ordersCompleted: document.getElementById("orders-completed"),
     batchTable: document.getElementById("batch-table-body"),
+    batchDownloads: document.getElementById("batch-downloads"),
     suiteResults: document.getElementById("suite-results"),
     suiteTableBody: document.getElementById("suite-table-body"),
     suiteProgress: document.getElementById("suite-progress-bar"),
@@ -300,7 +301,14 @@
   function updateBatch(batchResults) {
     elements.batchTable.innerHTML = "";
     if (!batchResults.length) {
+      if (elements.batchDownloads) {
+        elements.batchDownloads.classList.add("hidden");
+      }
       return;
+    }
+
+    if (elements.batchDownloads) {
+      elements.batchDownloads.classList.remove("hidden");
     }
 
     batchResults.forEach((row) => {
@@ -357,18 +365,53 @@
     ctx.scale(ratio, ratio);
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#0f172a";
+    const background = ctx.createLinearGradient(0, 0, 0, height);
+    background.addColorStop(0, "#ffffff");
+    background.addColorStop(1, "#f1f5f9");
+    ctx.fillStyle = background;
     ctx.fillRect(0, 0, width, height);
 
-    const padding = 30;
+    const padding = 34;
+    ctx.font = "11px Bahnschrift, Trebuchet MS, sans-serif";
+    const legendItems = series.map((line) => {
+      const textWidth = ctx.measureText(line.label).width;
+      const itemWidth = 10 + 6 + textWidth + 12;
+      return { label: line.label, color: line.color, width: itemWidth };
+    });
+    const availableLegendWidth = Math.max(80, width - padding * 2);
+    const legendRowHeight = 18;
+    const legendPaddingTop = 8;
+    let legendRowCount = 1;
+    let rowWidth = 0;
+    legendItems.forEach((item) => {
+      if (rowWidth + item.width > availableLegendWidth && rowWidth > 0) {
+        legendRowCount += 1;
+        rowWidth = 0;
+      }
+      rowWidth += item.width;
+    });
+    const legendHeight = legendRowCount * legendRowHeight + legendPaddingTop + 6;
+    const chartBottom = height - padding - legendHeight;
     const chartWidth = width - padding * 2;
-    const chartHeight = height - padding * 2;
+    const chartHeight = chartBottom - padding;
 
     const allValues = series.flatMap((s) => s.data || []);
-    const maxValue = Math.max(1, ...allValues);
-    const minValue = Math.min(0, ...allValues);
+    if (!allValues.length) {
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "12px Bahnschrift, Trebuchet MS, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("No data yet", width / 2, height / 2);
+      return;
+    }
 
-    ctx.strokeStyle = "rgba(148, 163, 184, 0.3)";
+    let maxValue = Math.max(...allValues);
+    let minValue = Math.min(...allValues);
+    const range = maxValue - minValue || 1;
+    maxValue += range * 0.1;
+    minValue -= range * 0.1;
+
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.4)";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i += 1) {
       const y = padding + (chartHeight / 4) * i;
@@ -377,40 +420,121 @@
       ctx.lineTo(width - padding, y);
       ctx.stroke();
     }
+    for (let i = 0; i <= 4; i += 1) {
+      const x = padding + (chartWidth / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, chartBottom);
+      ctx.stroke();
+    }
+
+    const xCount = Math.max(...series.map((line) => (line.data || []).length));
+    const xStep = xCount <= 10 ? 1 : xCount <= 20 ? 2 : xCount <= 50 ? 5 : 10;
+    const yStepCount = 4;
+    const yRange = maxValue - minValue || 1;
+    const yDecimals = yRange >= 20 ? 0 : yRange >= 5 ? 1 : 2;
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = "10px Bahnschrift, Trebuchet MS, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (let x = 0; x < xCount; x += xStep) {
+      const tx = padding + (chartWidth * x) / Math.max(1, xCount - 1);
+      ctx.fillText(String(x), tx, chartBottom + 6);
+    }
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i <= yStepCount; i += 1) {
+      const value = maxValue - (yRange / yStepCount) * i;
+      const ty = padding + (chartHeight / yStepCount) * i;
+      ctx.fillText(value.toFixed(yDecimals), padding - 6, ty);
+    }
 
     series.forEach((line) => {
       const data = line.data || [];
       if (data.length === 0) {
         return;
       }
-      ctx.strokeStyle = line.color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      data.forEach((value, index) => {
+      const points = data.map((value, index) => {
         const x = padding + (chartWidth * index) / Math.max(1, data.length - 1);
         const normalized = (value - minValue) / (maxValue - minValue || 1);
         const y = padding + chartHeight - normalized * chartHeight;
+        return { x, y };
+      });
+
+      const fillGradient = ctx.createLinearGradient(0, padding, 0, height - padding);
+      fillGradient.addColorStop(0, hexToRgba(line.color, 0.25));
+      fillGradient.addColorStop(1, hexToRgba(line.color, 0.0));
+      ctx.beginPath();
+      points.forEach((point, index) => {
         if (index === 0) {
-          ctx.moveTo(x, y);
+          ctx.moveTo(point.x, point.y);
         } else {
-          ctx.lineTo(x, y);
+          ctx.lineTo(point.x, point.y);
+        }
+      });
+      ctx.lineTo(points[points.length - 1].x, chartBottom);
+      ctx.lineTo(points[0].x, chartBottom);
+      ctx.closePath();
+      ctx.fillStyle = fillGradient;
+      ctx.fill();
+
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      points.forEach((point, index) => {
+        if (index === 0) {
+          ctx.moveTo(point.x, point.y);
+        } else {
+          ctx.lineTo(point.x, point.y);
         }
       });
       ctx.stroke();
+
+      const lastPoint = points[points.length - 1];
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(lastPoint.x, lastPoint.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     });
 
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = "12px Bahnschrift, Trebuchet MS, sans-serif";
+    ctx.font = "11px Bahnschrift, Trebuchet MS, sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
     let legendX = padding;
-    const legendY = 16;
-    series.forEach((line) => {
-      ctx.fillStyle = line.color;
-      ctx.fillRect(legendX, legendY - 8, 10, 10);
-      ctx.fillStyle = "#e2e8f0";
-      ctx.fillText(line.label, legendX + 14, legendY);
-      legendX += ctx.measureText(line.label).width + 30;
+    let legendY = chartBottom + 20 + legendPaddingTop;
+    legendItems.forEach((item) => {
+      if (legendX + item.width > width - padding && legendX > padding) {
+        legendX = padding;
+        legendY += legendRowHeight;
+      }
+      ctx.fillStyle = item.color;
+      ctx.fillRect(legendX, legendY - 6, 10, 10);
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(legendX, legendY - 6, 10, 10);
+      ctx.fillStyle = "#475569";
+      ctx.fillText(item.label, legendX + 16, legendY);
+      legendX += item.width;
     });
   }
+
+  function hexToRgba(hex, alpha) {
+    const value = hex.replace("#", "");
+    if (value.length !== 6) {
+      return `rgba(59, 130, 246, ${alpha})`;
+    }
+    const r = parseInt(value.slice(0, 2), 16);
+    const g = parseInt(value.slice(2, 4), 16);
+    const b = parseInt(value.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
 
   function drawGrid(snapshot) {
     if (!snapshot.grid_size) {
@@ -421,7 +545,7 @@
     const canvas = elements.gridCanvas;
     const ctx = canvas.getContext("2d");
     const containerWidth = canvas.parentElement.clientWidth;
-    const size = Math.max(300, Math.min(containerWidth, 620));
+    const size = Math.max(320, Math.min(containerWidth, 640));
     const ratio = window.devicePixelRatio || 1;
     canvas.width = size * ratio;
     canvas.height = size * ratio;
@@ -432,29 +556,49 @@
     ctx.fillStyle = "#fcfdff";
     ctx.fillRect(0, 0, size, size);
 
-    const cell = size / Math.max(gridW, gridH);
+    const padding = 28;
+    const innerSize = size - padding * 2;
+    const cell = innerSize / Math.max(gridW, gridH);
 
     ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= gridW; x += 1) {
       ctx.beginPath();
-      ctx.moveTo(x * cell, 0);
-      ctx.lineTo(x * cell, gridH * cell);
+      ctx.moveTo(padding + x * cell, padding);
+      ctx.lineTo(padding + x * cell, padding + gridH * cell);
       ctx.stroke();
     }
     for (let y = 0; y <= gridH; y += 1) {
       ctx.beginPath();
-      ctx.moveTo(0, y * cell);
-      ctx.lineTo(gridW * cell, y * cell);
+      ctx.moveTo(padding, padding + y * cell);
+      ctx.lineTo(padding + gridW * cell, padding + y * cell);
       ctx.stroke();
     }
 
     function toCanvas(pos) {
       return {
-        x: pos[0] * cell,
-        y: (gridH - 1 - pos[1]) * cell,
+        x: padding + pos[0] * cell,
+        y: padding + (gridH - 1 - pos[1]) * cell,
       };
     }
+
+    const maxDim = Math.max(gridW, gridH);
+    const tickStep = maxDim <= 12 ? 1 : maxDim <= 20 ? 2 : maxDim <= 30 ? 3 : 5;
+    ctx.fillStyle = "#64748b";
+    ctx.font = "10px Bahnschrift, Trebuchet MS, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (let x = 0; x < gridW; x += tickStep) {
+      const tx = padding + x * cell + cell * 0.5;
+      ctx.fillText(String(x), tx, padding + innerSize + 6);
+    }
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let y = 0; y < gridH; y += tickStep) {
+      const ty = padding + (gridH - 1 - y) * cell + cell * 0.5;
+      ctx.fillText(String(y), padding - 6, ty);
+    }
+
 
     snapshot.shelves.forEach((shelf) => {
       const p = toCanvas(shelf.pos);

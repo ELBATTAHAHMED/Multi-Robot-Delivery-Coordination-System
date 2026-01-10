@@ -13,6 +13,9 @@ from .state import (
     build_state_payload,
     clear_suite,
     ensure_model,
+    export_batch_agent_csv,
+    export_batch_model_csv,
+    export_batch_summary_csv,
     export_suite_csv,
     export_suite_zip as build_suite_zip,
     get_live_metrics,
@@ -214,4 +217,43 @@ def export_suite_zip(request):
         zip_buffer = build_suite_zip(state.suite_results["summary"], state.suite_results["pngs"])
     response = HttpResponse(zip_buffer.getvalue(), content_type="application/zip")
     response["Content-Disposition"] = "attachment; filename=experiment_suite.zip"
+    return response
+
+
+@require_http_methods(["GET"])
+def export_batch_summary(request):
+    session_id = get_session_id(request)
+    state = store.get(session_id)
+    with state.lock:
+        if not state.batch_results:
+            return HttpResponse("No batch results", status=404)
+        csv = export_batch_summary_csv(state.batch_results)
+    response = HttpResponse(csv, content_type="text/csv")
+    response["Content-Disposition"] = "attachment; filename=batch_summary.csv"
+    return response
+
+
+@require_http_methods(["GET"])
+def export_batch_model(request):
+    session_id = get_session_id(request)
+    state = store.get(session_id)
+    with state.lock:
+        if not state.batch_results:
+            return HttpResponse("No batch results", status=404)
+        csv = export_batch_model_csv(state.batch_results)
+    response = HttpResponse(csv, content_type="text/csv")
+    response["Content-Disposition"] = "attachment; filename=batch_model_data.csv"
+    return response
+
+
+@require_http_methods(["GET"])
+def export_batch_agent(request):
+    session_id = get_session_id(request)
+    state = store.get(session_id)
+    with state.lock:
+        if not state.batch_results:
+            return HttpResponse("No batch results", status=404)
+        csv = export_batch_agent_csv(state.batch_results)
+    response = HttpResponse(csv, content_type="text/csv")
+    response["Content-Disposition"] = "attachment; filename=batch_agent_data.csv"
     return response

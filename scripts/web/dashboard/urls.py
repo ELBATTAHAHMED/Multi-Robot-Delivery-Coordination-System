@@ -14,6 +14,9 @@ urlpatterns = [
     path("api/export/metrics", views.export_metrics, name="export_metrics"),
     path("api/export/model", views.export_model_csv, name="export_model_csv"),
     path("api/export/agent", views.export_agent_csv, name="export_agent_csv"),
+    path("api/export/batch/summary", views.export_batch_summary, name="export_batch_summary"),
+    path("api/export/batch/model", views.export_batch_model, name="export_batch_model"),
+    path("api/export/batch/agent", views.export_batch_agent, name="export_batch_agent"),
     path("api/export/suite/summary", views.export_suite_summary, name="export_suite_summary"),
     path("api/export/suite/zip", views.export_suite_zip, name="export_suite_zip"),
 ]

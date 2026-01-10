@@ -481,7 +481,18 @@ def run_all_mechanisms_batch(params: Dict) -> Dict:
 
         final_metrics = batch_model.get_metrics()
 
-        results[mech] = {"metrics": final_metrics}
+        if hasattr(batch_model.datacollector, "get_model_vars_dataframe"):
+            model_df = batch_model.datacollector.get_model_vars_dataframe()
+        else:
+            model_df = batch_model.datacollector.get_model_reporters_dataframe()
+
+        agent_df = batch_model.datacollector.get_agent_vars_dataframe()
+
+        results[mech] = {
+            "metrics": final_metrics,
+            "model_df": model_df,
+            "agent_df": agent_df,
+        }
 
     return results
 
@@ -725,3 +736,67 @@ def export_suite_zip(summary_rows: List[Dict], pngs: Dict[str, BytesIO]) -> Byte
             zip_file.writestr(f"warehouse_{scenario_name}.png", png_buffer.getvalue())
     zip_buffer.seek(0)
     return zip_buffer
+
+
+def export_batch_summary_csv(batch_results: Dict) -> str:
+    if not batch_results:
+        return ""
+
+    rows = []
+    for mech, result in batch_results.items():
+        metrics = result["metrics"]
+        rows.append(
+            {
+                "Mechanism": mech.upper(),
+                "Throughput": metrics["throughput"],
+                "Efficiency": metrics["efficiency"],
+                "Total_Distance": metrics["total_distance"],
+                "Total_Conflicts": metrics["total_conflicts"],
+                "Fairness_Variance": metrics["task_fairness_variance"],
+                "Orders_Completed": metrics["total_orders_completed"],
+                "Orders_Generated": metrics["total_orders_generated"],
+            }
+        )
+
+    df = pd.DataFrame(rows)
+    return df.to_csv(index=False)
+
+
+def export_batch_model_csv(batch_results: Dict) -> str:
+    if not batch_results:
+        return ""
+
+    frames = []
+    for mech, result in batch_results.items():
+        model_df = result.get("model_df")
+        if model_df is None:
+            continue
+        df = model_df.copy()
+        df["Mechanism"] = mech.upper()
+        frames.append(df)
+
+    if not frames:
+        return ""
+
+    combined = pd.concat(frames, axis=0)
+    return combined.to_csv()
+
+
+def export_batch_agent_csv(batch_results: Dict) -> str:
+    if not batch_results:
+        return ""
+
+    frames = []
+    for mech, result in batch_results.items():
+        agent_df = result.get("agent_df")
+        if agent_df is None:
+            continue
+        df = agent_df.copy()
+        df["Mechanism"] = mech.upper()
+        frames.append(df)
+
+    if not frames:
+        return ""
+
+    combined = pd.concat(frames, axis=0)
+    return combined.to_csv()
