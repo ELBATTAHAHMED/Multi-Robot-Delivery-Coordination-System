@@ -172,47 +172,6 @@
           <p class="panel-subtitle">Interactive Mesa simulation with real-time visualization</p>
         </div>
       </header>
-      <section class="panel action-panel">
-        <div class="action-header">
-          <div>
-            <div class="section-header section-header-main">Experiment Suite</div>
-            <p class="panel-subtitle">Run the full 7x3 comparison suite with PNG exports</p>
-          </div>
-          <button id="btn-run-suite" class="button button-primary">Run Full Suite (7x3)</button>
-        </div>
-        <div class="suite-progress">
-          <div class="progress-track">
-            <div id="suite-progress-bar" class="progress-bar"></div>
-          </div>
-          <div id="suite-status" class="progress-text">Idle</div>
-        </div>
-      </section>
-
-      <section id="suite-results" class="panel hidden">
-        <div class="section-header section-header-main">Full Experiment Suite Results</div>
-        <div class="table-wrapper">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Scenario</th>
-                <th>Mechanism</th>
-                <th>Throughput</th>
-                <th>Efficiency</th>
-                <th>Total Distance</th>
-                <th>Total Conflicts</th>
-                <th>Fairness Var</th>
-              </tr>
-            </thead>
-            <tbody id="suite-table-body"></tbody>
-          </table>
-        </div>
-        <div class="button-row">
-          <a id="suite-csv-link" class="button" href="/api/export/suite/summary">Summary CSV</a>
-          <a id="suite-zip-link" class="button" href="/api/export/suite/zip">ZIP (PNG + CSV)</a>
-          <button id="btn-clear-suite" class="button">Clear Results</button>
-        </div>
-      </section>
-
       <section class="grid-metrics">
         <div class="panel grid-panel">
           <div class="section-header section-header-main">Warehouse Grid</div>
@@ -335,6 +294,7 @@
               <canvas id="chart-conflicts"></canvas>
             </div>
           </div>
+
         </div>
 
         <div id="tab-robots" class="tab-panel">
@@ -420,6 +380,48 @@
           </div>
         </div>
       </section>
+
+      <section class="panel action-panel">
+        <div class="action-header">
+          <div>
+            <div class="section-header section-header-main">Experiment Suite</div>
+            <p class="panel-subtitle">Run the full 7x3 comparison suite with PNG exports</p>
+          </div>
+          <button id="btn-run-suite" class="button button-primary">Run Full Suite (7x3)</button>
+        </div>
+        <div class="suite-progress">
+          <div class="progress-track">
+            <div id="suite-progress-bar" class="progress-bar"></div>
+          </div>
+          <div id="suite-status" class="progress-text">Idle</div>
+        </div>
+      </section>
+
+      <section id="suite-results" class="panel hidden">
+        <div class="section-header section-header-main">Full Experiment Suite Results</div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Mechanism</th>
+                <th>Throughput</th>
+                <th>Efficiency</th>
+                <th>Total Distance</th>
+                <th>Total Conflicts</th>
+                <th>Fairness Var</th>
+              </tr>
+            </thead>
+            <tbody id="suite-table-body"></tbody>
+          </table>
+        </div>
+        <div class="button-row">
+          <a id="suite-csv-link" class="button" href="/api/export/suite/summary">Summary CSV</a>
+          <a id="suite-zip-link" class="button" href="/api/export/suite/zip">ZIP (PNG + CSV)</a>
+          <button id="btn-clear-suite" class="button">Clear Results</button>
+        </div>
+      </section>
+
     </main>
   </div>
 

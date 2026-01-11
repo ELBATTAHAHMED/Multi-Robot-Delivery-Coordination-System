@@ -251,6 +251,9 @@
       elements.mechanismSelectWrap.classList.toggle("is-open", open);
     }
     elements.mechanismTrigger.setAttribute("aria-expanded", open ? "true" : "false");
+    if (!open) {
+      elements.mechanismTrigger.blur();
+    }
     if (open && elements.mechanismMenu) {
       const active = elements.mechanismMenu.querySelector(".mechanism-option.is-selected");
       if (active) {
